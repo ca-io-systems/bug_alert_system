@@ -14,8 +14,9 @@ const client = new Client({
     ],
 });
 
-const MONITORED_CHANNELS = ['truth-engine']; // Add more channel names as needed
-const ALERT_CHANNEL_NAME = 'ai-insights'; // Channel to send alerts to
+const SERVER_NAME = 'ClientAcquisition.io';
+const MONITORED_CHANNELS = ['truth-engine', 'cookai-test-kitchen'];
+const ALERT_CHANNEL_NAME = '❗║error-handling';
 
 let db;
 
@@ -106,37 +107,26 @@ async function startDatabaseMonitor() {
 
 async function broadcastExternalAlert(data, type) {
     const embed = formatExternalAlert(data, type);
-    const guilds = Array.from(client.guilds.cache.values());
-    console.log(`📡 Broadcasting to ${guilds.length} servers...`);
+    const guild = client.guilds.cache.find(g => g.name === SERVER_NAME);
 
-    for (const guild of guilds) {
-        const targetChannelNames = [ALERT_CHANNEL_NAME];
+    if (!guild) {
+        console.warn(`⚠️ Server "${SERVER_NAME}" not found. Cannot broadcast alert.`);
+        return;
+    }
 
-        // Specific routing for Rayyaaaan's server (add general as well)
-        if (guild.name.toLowerCase().includes("rayyaaaan")) {
-            if (!targetChannelNames.includes('general')) {
-                targetChannelNames.push('general');
-            }
+    try {
+        const channel = guild.channels.cache.find(
+            c => c.name.toLowerCase() === ALERT_CHANNEL_NAME.toLowerCase() && c.type === ChannelType.GuildText
+        );
+
+        if (channel) {
+            await channel.send({ embeds: [embed] });
+            console.log(`✅ Sent external alert to #${ALERT_CHANNEL_NAME} in "${guild.name}"`);
+        } else {
+            console.warn(`⚠️ Channel #${ALERT_CHANNEL_NAME} NOT FOUND in "${guild.name}".`);
         }
-
-        console.log(`🔍 [${guild.name}] Target channels: ${targetChannelNames.join(', ')}`);
-
-        for (const name of targetChannelNames) {
-            const channel = guild.channels.cache.find(
-                c => c.name.toLowerCase() === name.toLowerCase() && c.type === ChannelType.GuildText
-            );
-
-            if (channel) {
-                try {
-                    await channel.send({ embeds: [embed] });
-                    console.log(`✅ [${guild.name}] Sent to #${name}`);
-                } catch (err) {
-                    console.error(`❌ [${guild.name}] Failed to send to #${name}: ${err.message}`);
-                }
-            } else {
-                console.warn(`⚠️ [${guild.name}] Channel #${name} NOT FOUND.`);
-            }
-        }
+    } catch (error) {
+        console.error('❌ Error broadcasting external alert:', error);
     }
 }
 
@@ -145,9 +135,14 @@ client.on('messageCreate', async (message) => {
         // Skip bot messages and own messages
         if (message.author.bot) return;
 
+        // Only listen to ClientAcquisition Server
+        if (message.guild.name !== SERVER_NAME) {
+            return;
+        }
+
         // Check if message is in monitored channel
         const isMonitored = MONITORED_CHANNELS.some(
-            channelName => message.channel.name === channelName
+            channelName => message.channel.name.toLowerCase().includes(channelName.toLowerCase())
         );
 
         if (!isMonitored) {
@@ -193,8 +188,8 @@ client.on('messageCreate', async (message) => {
                 timestamp: new Date(),
             });
 
-            // Send alert to designated channel
-            await sendAlertToChannel(message.guild, analysis, message);
+            // Send alert to designated channel with attachments
+            await sendAlertToChannel(message.guild, analysis, message, message.attachments);
         } else {
             console.log(`ℹ️ No alert required for this message (Category: ${analysis.category})`);
         }
@@ -204,7 +199,7 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-async function sendAlertToChannel(guild, analysis, originalMessage) {
+async function sendAlertToChannel(guild, analysis, originalMessage, attachments) {
     try {
         console.log(`🔍 Routing alert for server: "${guild.name}"`);
 
@@ -222,14 +217,22 @@ async function sendAlertToChannel(guild, analysis, originalMessage) {
 
         const embed = formatAlert(analysis, originalMessage);
 
+        // Prepare files from attachments
+        const files = attachments && attachments.size > 0 ? Array.from(attachments.values()).map(att => att.url) : [];
+
         for (const name of targetChannelNames) {
             const channel = guild.channels.cache.find(
                 c => c.name.toLowerCase() === name.toLowerCase() && c.type === ChannelType.GuildText
             );
 
             if (channel) {
-                await channel.send({ embeds: [embed] });
-                console.log(`📢 Alert sent to #${name} in "${guild.name}"`);
+                const messagePayload = { embeds: [embed] };
+                if (files.length > 0) {
+                    messagePayload.files = files;
+                }
+
+                await channel.send(messagePayload);
+                console.log(`📢 Alert sent to #${name} in "${guild.name}"${files.length > 0 ? ` with ${files.length} attachment(s)` : ''}`);
 
                 // If it was a bug or feature, send a follow-up confirmation
                 if (analysis.category === 'bug' || analysis.category === 'feature_request') {
