@@ -4,6 +4,11 @@ const MIN_MESSAGE_LENGTH = parseInt(process.env.MIN_MESSAGE_LENGTH || '5', 10);
 const TEAM_MEMBER_IDS = (process.env.TEAM_MEMBER_IDS || '').split(',').filter(Boolean);
 
 export function isRelevantMessage(message) {
+    // Ignore team members
+    if (TEAM_MEMBER_IDS.includes(message.author.id)) {
+        return false;
+    }
+
     // Filter by minimum length
     if (message.content.length < MIN_MESSAGE_LENGTH) {
         return false;
@@ -86,6 +91,22 @@ export function formatAlert(analysis, originalMessage) {
         });
     }
 
+    // Handle Media (Images/Videos)
+    const attachments = originalMessage.attachments;
+    if (attachments.size > 0) {
+        const firstAttachment = attachments.first();
+        if (firstAttachment.contentType?.startsWith('image/')) {
+            embed.setImage(firstAttachment.url);
+        }
+
+        const mediaLinks = attachments.map(a => `[${a.name}](${a.url})`).join('\n');
+        embed.addFields({
+            name: 'Media Attachments',
+            value: mediaLinks,
+            inline: false
+        });
+    }
+
     return embed;
 }
 
@@ -99,7 +120,7 @@ export function formatExternalAlert(data, type) {
 
     const color = severityColors[data.severity || data.priority] || 0x3498DB;
     const emoji = type === 'bug' ? '🐛' : '💡';
-    const title = type === 'bug' ? 'NEW BUG REPORT (EXTERNAL)' : 'NEW FEATURE SUGGESTION (EXTERNAL)';
+    const title = type === 'bug' ? 'NEW BUG REPORT' : 'NEW FEATURE SUGGESTION';
 
     const embed = new EmbedBuilder()
         .setColor(color)
