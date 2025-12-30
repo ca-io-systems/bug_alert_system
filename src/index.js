@@ -115,15 +115,18 @@ async function broadcastExternalAlert(data, type) {
     }
 
     try {
+        // Route based on type: bugs → error-handling, features → feature-suggestions
+        const targetChannelName = type === 'feature' ? FEATURE_CHANNEL_NAME : ALERT_CHANNEL_NAME;
+
         const channel = guild.channels.cache.find(
-            c => c.name.toLowerCase() === ALERT_CHANNEL_NAME.toLowerCase() && c.type === ChannelType.GuildText
+            c => c.name.toLowerCase() === targetChannelName.toLowerCase() && c.type === ChannelType.GuildText
         );
 
         if (channel) {
             await channel.send({ embeds: [embed] });
-            console.log(`✅ Sent external alert to #${ALERT_CHANNEL_NAME} in "${guild.name}"`);
+            console.log(`✅ Sent external alert to #${targetChannelName} in "${guild.name}"`);
         } else {
-            console.warn(`⚠️ Channel #${ALERT_CHANNEL_NAME} NOT FOUND in "${guild.name}".`);
+            console.warn(`⚠️ Channel #${targetChannelName} NOT FOUND in "${guild.name}".`);
         }
     } catch (error) {
         console.error('❌ Error broadcasting external alert:', error);
