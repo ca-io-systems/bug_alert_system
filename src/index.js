@@ -199,20 +199,18 @@ client.on('messageCreate', async (message) => {
     }
 });
 
+const FEATURE_CHANNEL_NAME = '⚙️║feature-suggestions';
+
 async function sendAlertToChannel(guild, analysis, originalMessage, attachments) {
     try {
         console.log(`🔍 Routing alert for server: "${guild.name}"`);
 
-        const targetChannelNames = [ALERT_CHANNEL_NAME];
-
-        // Specific routing for Rayyaaaan's server (add general as well)
-        const isRayyaaaanServer = guild.name.toLowerCase().includes("rayyaaaan");
-        console.log(`ℹ️ Routing check: Server="${guild.name}", MatchFound=${isRayyaaaanServer}`);
-
-        if (isRayyaaaanServer) {
-            if (!targetChannelNames.includes('general')) {
-                targetChannelNames.push('general');
-            }
+        // Route based on category: bugs → error-handling, features → feature-suggestions
+        let targetChannelNames = [];
+        if (analysis.category === 'feature_request') {
+            targetChannelNames = [FEATURE_CHANNEL_NAME];
+        } else {
+            targetChannelNames = [ALERT_CHANNEL_NAME];
         }
 
         const embed = formatAlert(analysis, originalMessage);
