@@ -1,7 +1,8 @@
 import { OpenAI } from 'openai';
 
 const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.OPENROUTER_API_KEY,
+    baseURL: 'https://openrouter.ai/api/v1',
 });
 
 const SYSTEM_PROMPT = `You are an AI analyst for a product feedback system. Analyze Discord messages for:
@@ -32,7 +33,7 @@ export async function analyzeMessageWithLLM(messageContent) {
     try {
         console.log('🤖 AI is analyzing message content...');
         const response = await client.chat.completions.create({
-            model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+            model: 'openai/gpt-5-nano',
             messages: [
                 {
                     role: 'system',
